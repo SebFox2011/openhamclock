@@ -1889,9 +1889,17 @@
                         </div>
                         {/* 24 hour cells */}
                         {Array.from({ length: 24 }, (_, hour) => {
-                          const bandData = hourlyPredictions?.[band];
-                          const hourData = bandData?.find(h => h.hour === hour);
-                          const rel = hourData?.reliability || 0;
+                          // For current hour, use currentBands (same hybrid data as bars view)
+                          // For other hours, use hourlyPredictions
+                          let rel;
+                          if (hour === currentHour) {
+                            const currentBandData = currentBands.find(b => b.band === band);
+                            rel = currentBandData?.reliability || 0;
+                          } else {
+                            const bandData = hourlyPredictions?.[band];
+                            const hourData = bandData?.find(h => h.hour === hour);
+                            rel = hourData?.reliability || 0;
+                          }
                           return (
                             <div 
                               key={hour}
