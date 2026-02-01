@@ -27,6 +27,78 @@ const ITURHFPROP_DATA = process.env.ITURHFPROP_DATA || '/opt/iturhfprop';
 // Temp directory for input/output files
 const TEMP_DIR = '/tmp/iturhfprop';
 
+// === CACHING AND CIRCUIT BREAKER ===
+const predictionCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_MAX_SIZE = 100;
+
+// Circuit breaker state
+let circuitBreakerOpen = false;
+let consecutiveFailures = 0;
+let lastFailureTime = 0;
+const FAILURE_THRESHOLD = 5;
+const CIRCUIT_RESET_TIME = 60 * 1000; // 1 minute
+
+// Rate limiting - track last log time to avoid log spam
+let lastErrorLogTime = 0;
+const ERROR_LOG_INTERVAL = 10000; // Only log errors every 10 seconds
+
+function getCacheKey(params) {
+  // Round coordinates to 1 decimal place for better cache hits
+  const key = `${params.txLat.toFixed(1)},${params.txLon.toFixed(1)}-${params.rxLat.toFixed(1)},${params.rxLon.toFixed(1)}-${params.month}-${params.hour}-${params.ssn}`;
+  return key;
+}
+
+function getFromCache(key) {
+  const cached = predictionCache.get(key);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    return cached.data;
+  }
+  predictionCache.delete(key);
+  return null;
+}
+
+function setCache(key, data) {
+  // Enforce max cache size
+  if (predictionCache.size >= CACHE_MAX_SIZE) {
+    const oldestKey = predictionCache.keys().next().value;
+    predictionCache.delete(oldestKey);
+  }
+  predictionCache.set(key, { data, timestamp: Date.now() });
+}
+
+function checkCircuitBreaker() {
+  if (!circuitBreakerOpen) return false;
+  
+  // Check if enough time has passed to try again
+  if (Date.now() - lastFailureTime > CIRCUIT_RESET_TIME) {
+    circuitBreakerOpen = false;
+    consecutiveFailures = 0;
+    console.log('[Circuit Breaker] Reset - allowing requests');
+    return false;
+  }
+  return true;
+}
+
+function recordFailure() {
+  consecutiveFailures++;
+  lastFailureTime = Date.now();
+  
+  if (consecutiveFailures >= FAILURE_THRESHOLD) {
+    circuitBreakerOpen = true;
+    // Only log this once
+    if (Date.now() - lastErrorLogTime > ERROR_LOG_INTERVAL) {
+      console.log(`[Circuit Breaker] OPEN - ${consecutiveFailures} consecutive failures, pausing for ${CIRCUIT_RESET_TIME/1000}s`);
+      lastErrorLogTime = Date.now();
+    }
+  }
+}
+
+function recordSuccess() {
+  consecutiveFailures = 0;
+  circuitBreakerOpen = false;
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -168,7 +240,7 @@ function parseOutputFile(outputPath) {
               snr: snr,
               reliability: bcr
             });
-            console.log(`[Parse] Freq ${freq} MHz: SNR=${snr} dB, BCR=${bcr}%`);
+            // Removed per-frequency logging to reduce spam
           }
         }
       }
@@ -180,10 +252,17 @@ function parseOutputFile(outputPath) {
       results.muf = parseFloat(mufMatch[1]);
     }
     
-    console.log(`[Parse] Found ${results.frequencies.length} frequency results`);
+    // Only log success occasionally
+    if (results.frequencies.length > 0 && Date.now() - lastErrorLogTime > ERROR_LOG_INTERVAL) {
+      console.log(`[Parse] Found ${results.frequencies.length} frequency results, MUF=${results.muf || 'N/A'}`);
+    }
     return results;
   } catch (err) {
-    console.error('[Parse Error]', err.message);
+    // Only log errors occasionally
+    if (Date.now() - lastErrorLogTime > ERROR_LOG_INTERVAL) {
+      console.error('[Parse Error]', err.message);
+      lastErrorLogTime = Date.now();
+    }
     return { error: err.message, frequencies: [] };
   }
 }
@@ -192,6 +271,18 @@ function parseOutputFile(outputPath) {
  * Run ITURHFProp prediction
  */
 async function runPrediction(params) {
+  // Check circuit breaker first
+  if (checkCircuitBreaker()) {
+    return { error: 'Circuit breaker open - service temporarily unavailable', frequencies: [] };
+  }
+  
+  // Check cache
+  const cacheKey = getCacheKey(params);
+  const cached = getFromCache(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  
   const id = crypto.randomBytes(8).toString('hex');
   const inputPath = path.join(TEMP_DIR, `input_${id}.txt`);
   const outputPath = path.join(TEMP_DIR, `output_${id}.txt`);
@@ -209,14 +300,15 @@ async function runPrediction(params) {
     const inputContent = generateInputFile(params);
     fs.writeFileSync(inputPath, inputContent);
     
-    console.log(`[ITURHFProp] Running prediction ${id}`);
-    console.log(`[ITURHFProp] TX: ${params.txLat}, ${params.txLon} -> RX: ${params.rxLat}, ${params.rxLon}`);
-    console.log(`[ITURHFProp] Input file:\n${inputContent}`);
+    // Only log occasionally to avoid spam
+    const shouldLog = Date.now() - lastErrorLogTime > ERROR_LOG_INTERVAL;
+    if (shouldLog) {
+      console.log(`[ITURHFProp] Running prediction ${id}: TX(${params.txLat.toFixed(1)},${params.txLon.toFixed(1)}) -> RX(${params.rxLat.toFixed(1)},${params.rxLon.toFixed(1)})`);
+    }
     
     // Run ITURHFProp
     const startTime = Date.now();
     const cmd = `${ITURHFPROP_PATH} ${inputPath} ${outputPath}`;
-    console.log(`[ITURHFProp] Command: ${cmd}`);
     
     try {
       execStdout = execSync(cmd, {
@@ -224,40 +316,39 @@ async function runPrediction(params) {
         encoding: 'utf8',
         env: { ...process.env, LD_LIBRARY_PATH: '/opt/iturhfprop:' + (process.env.LD_LIBRARY_PATH || '') }
       });
-      console.log(`[ITURHFProp] stdout: ${execStdout}`);
     } catch (execError) {
       execStderr = execError.stderr?.toString() || '';
       execStdout = execError.stdout?.toString() || '';
-      console.error('[ITURHFProp] Execution error!');
-      console.error('[ITURHFProp] Exit code:', execError.status);
-      console.error('[ITURHFProp] stderr:', execStderr);
-      console.error('[ITURHFProp] stdout:', execStdout);
       
-      // Don't throw - try to read output anyway
+      // Only log errors periodically to avoid spam
+      if (Date.now() - lastErrorLogTime > ERROR_LOG_INTERVAL) {
+        console.error(`[ITURHFProp] Error (exit ${execError.status}): ${execStdout.substring(0, 100)}`);
+        lastErrorLogTime = Date.now();
+      }
+      
+      recordFailure();
+      
+      // Return empty result but cache it to avoid repeated failures
+      const errorResult = { error: `Exit code ${execError.status}`, frequencies: [], cached: false };
+      setCache(cacheKey, errorResult);
+      return errorResult;
     }
     
     const elapsed = Date.now() - startTime;
-    console.log(`[ITURHFProp] Completed in ${elapsed}ms`);
-    
-    // Check output file
-    if (fs.existsSync(outputPath)) {
-      const rawOutput = fs.readFileSync(outputPath, 'utf8');
-      const stats = fs.statSync(outputPath);
-      console.log(`[ITURHFProp] Output file exists, size: ${stats.size} bytes`);
-      console.log(`[ITURHFProp] Raw output (first 2000 chars):\n${rawOutput.substring(0, 2000)}`);
-    } else {
-      console.log(`[ITURHFProp] Output file NOT FOUND at ${outputPath}`);
-      // Check if there's a report file in /tmp
-      const tmpFiles = fs.readdirSync('/tmp').filter(f => f.startsWith('RPT') || f.startsWith('PDD'));
-      console.log(`[ITURHFProp] Report files in /tmp: ${tmpFiles.join(', ') || 'none'}`);
-    }
     
     // Parse output
     const results = parseOutputFile(outputPath);
+    
+    if (results.frequencies.length === 0) {
+      recordFailure();
+      const errorResult = { error: 'No frequency results', frequencies: [], elapsed };
+      setCache(cacheKey, errorResult);
+      return errorResult;
+    }
+    
+    // Success!
+    recordSuccess();
     results.elapsed = elapsed;
-    results.execStdout = execStdout;
-    results.execStderr = execStderr;
-    results.inputContent = inputContent;
     results.params = {
       txLat: params.txLat,
       txLon: params.txLon,
@@ -267,6 +358,9 @@ async function runPrediction(params) {
       month: params.month,
       ssn: params.ssn
     };
+    
+    // Cache successful result
+    setCache(cacheKey, results);
     
     return results;
     
@@ -301,7 +395,7 @@ app.get('/api/health', (req, res) => {
   const ionosDataExists = fs.existsSync(ITURHFPROP_DATA + '/Data/ionos12.bin');
   
   res.json({
-    status: binaryExists && dataSubExists && libp533Exists && ionosDataExists ? 'healthy' : 'degraded',
+    status: binaryExists && dataSubExists && libp533Exists && ionosDataExists && !circuitBreakerOpen ? 'healthy' : 'degraded',
     service: 'iturhfprop',
     version: '1.0.0',
     engine: 'ITURHFProp (ITU-R P.533-14)',
@@ -310,6 +404,11 @@ app.get('/api/health', (req, res) => {
     libp372: libp372Exists ? 'found' : 'missing',
     dataDir: dataSubExists ? 'found' : 'missing',
     ionosData: ionosDataExists ? 'found' : 'missing',
+    circuitBreaker: {
+      open: circuitBreakerOpen,
+      consecutiveFailures,
+      cacheSize: predictionCache.size
+    },
     paths: {
       binary: ITURHFPROP_PATH,
       data: ITURHFPROP_DATA

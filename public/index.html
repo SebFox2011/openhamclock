@@ -1891,12 +1891,19 @@
                         </div>
                         {/* 24 hour cells */}
                         {Array.from({ length: 24 }, (_, hour) => {
-                          // For current hour, use currentBands (same hybrid data as bars view)
-                          // For other hours, use hourlyPredictions
-                          let rel;
-                          if (hour === currentHour) {
+                          // For current hour, try to use currentBands (same hybrid data as bars view)
+                          // Fall back to hourlyPredictions if currentBands doesn't have this band
+                          let rel = 0;
+                          if (hour === currentHour && currentBands?.length > 0) {
                             const currentBandData = currentBands.find(b => b.band === band);
-                            rel = currentBandData?.reliability || 0;
+                            if (currentBandData) {
+                              rel = currentBandData.reliability || 0;
+                            } else {
+                              // Band not in currentBands, use hourlyPredictions
+                              const bandData = hourlyPredictions?.[band];
+                              const hourData = bandData?.find(h => h.hour === hour);
+                              rel = hourData?.reliability || 0;
+                            }
                           } else {
                             const bandData = hourlyPredictions?.[band];
                             const hourData = bandData?.find(h => h.hour === hour);
@@ -1976,7 +1983,7 @@
                     <span><span style={{ color: 'var(--text-muted)' }}>K </span><span style={{ color: solarData.kIndex >= 4 ? '#ff4444' : '#00ff88' }}>{solarData.kIndex}</span></span>
                   </div>
                   
-                  {currentBands.slice(0, 11).map((band, idx) => (
+                  {(currentBands || []).slice(0, 11).map((band, idx) => (
                     <div key={band.band} style={{ 
                       display: 'grid', 
                       gridTemplateColumns: '32px 1fr 40px', 
