@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { calculateGridSquare } from '../utils/geo.js';
 import { useTranslation, Trans } from 'react-i18next';
+import { LANGUAGES } from '../lang/i18n.js';
 
 export const SettingsPanel = ({ isOpen, onClose, config, onSave }) => {
   const [callsign, setCallsign] = useState(config?.callsign || '');
@@ -14,7 +15,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave }) => {
   const [theme, setTheme] = useState(config?.theme || 'dark');
   const [layout, setLayout] = useState(config?.layout || 'modern');
   const [dxClusterSource, setDxClusterSource] = useState(config?.dxClusterSource || 'dxspider-proxy');
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   // Layer controls
   const [layers, setLayers] = useState([]);
@@ -476,6 +477,40 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave }) => {
               </select>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
                 {t('station.settings.dx.describe')}
+              </div>
+            </div>
+
+            {/* Language */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                🌐 {t('station.settings.language')}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                {LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => i18n.changeLanguage(lang.code)}
+                    style={{
+                      padding: '8px 6px',
+                      background: i18n.language === lang.code || (i18n.language && i18n.language.startsWith(lang.code)) 
+                        ? 'rgba(0, 221, 255, 0.2)' 
+                        : 'var(--bg-tertiary)',
+                      border: `1px solid ${i18n.language === lang.code || (i18n.language && i18n.language.startsWith(lang.code))
+                        ? 'var(--accent-cyan)' 
+                        : 'var(--border-color)'}`,
+                      borderRadius: '6px',
+                      color: i18n.language === lang.code || (i18n.language && i18n.language.startsWith(lang.code))
+                        ? 'var(--accent-cyan)' 
+                        : 'var(--text-secondary)',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: i18n.language === lang.code || (i18n.language && i18n.language.startsWith(lang.code)) ? '600' : '400',
+                      textAlign: 'center'
+                    }}
+                  >
+                    {lang.flag} {lang.name}
+                  </button>
+                ))}
               </div>
             </div>
           </>
