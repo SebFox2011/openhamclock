@@ -224,7 +224,7 @@ app.use('/api', (req, res, next) => {
 // ============================================
 // Prevents log spam when services are down
 const errorLogState = {};
-const ERROR_LOG_INTERVAL = 60000; // Only log same error once per minute
+const ERROR_LOG_INTERVAL = 5 * 60 * 1000; // Only log same error once per 5 minutes
 
 function logErrorOnce(category, message) {
   const key = `${category}:${message}`;
@@ -2066,7 +2066,6 @@ app.get('/api/pskreporter/http/:callsign', async (req, res) => {
   
   // If we're in 503 backoff period, return cached data or empty result
   if (psk503Backoff > now) {
-    console.log(`[PSKReporter HTTP] In backoff period, ${Math.round((psk503Backoff - now) / 1000)}s remaining`);
     if (pskHttpCache[cacheKey]) {
       return res.json({ ...pskHttpCache[cacheKey].data, cached: true, stale: true });
     }
@@ -2084,8 +2083,6 @@ app.get('/api/pskreporter/http/:callsign', async (req, res) => {
     // Add appcontact parameter as requested by PSKReporter developer docs
     const url = `https://retrieve.pskreporter.info/query?${param}=${encodeURIComponent(callsign)}&flowStartSeconds=${flowStartSeconds}&rronly=1&appcontact=openhamclock`;
     
-    console.log(`[PSKReporter HTTP] Fetching ${direction} for ${callsign} (last ${minutes} min)`);
-    
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     
@@ -2102,7 +2099,7 @@ app.get('/api/pskreporter/http/:callsign', async (req, res) => {
       // On 503, set backoff period (15 minutes) to avoid hammering
       if (response.status === 503) {
         psk503Backoff = Date.now() + (15 * 60 * 1000);
-        console.log(`[PSKReporter HTTP] Got 503, backing off for 15 minutes`);
+        logErrorOnce('PSKReporter HTTP', '503 - backing off for 15 minutes');
       }
       throw new Error(`HTTP ${response.status}`);
     }
@@ -2605,14 +2602,11 @@ async function fetchITURHFPropPrediction(txLat, txLon, rxLat, rxLon, ssn, month,
   
   // Check cache
   if (iturhfpropCache.key === cacheKey && (now - iturhfpropCache.timestamp) < iturhfpropCache.maxAge) {
-    console.log('[Hybrid] Using cached ITURHFProp prediction');
     return iturhfpropCache.data;
   }
   
   try {
-    console.log('[Hybrid] Fetching from ITURHFProp service:', ITURHFPROP_URL);
     const url = `${ITURHFPROP_URL}/api/bands?txLat=${txLat}&txLon=${txLon}&rxLat=${rxLat}&rxLon=${rxLon}&ssn=${ssn}&month=${month}&hour=${hour}`;
-    console.log('[Hybrid] Request URL:', url);
     
     // Create abort controller for timeout
     const controller = new AbortController();
