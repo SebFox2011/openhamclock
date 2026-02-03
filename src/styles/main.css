@@ -874,8 +874,9 @@ body::before {
 
 /* Earthquake icon markers */
 .earthquake-icon {
-  z-index: 1000 !important;
+  z-index: 10000 !important;
   pointer-events: auto;
+  position: relative !important;
 }
 
 .earthquake-icon div {
@@ -884,12 +885,15 @@ body::before {
   justify-content: center;
   cursor: pointer;
   user-select: none;
+  position: relative;
+  z-index: 10000 !important;
 }
 
 /* Lightning icon markers */
 .lightning-icon {
-  z-index: 1000 !important;
+  z-index: 10000 !important;
   pointer-events: auto;
+  position: relative !important;
 }
 
 .lightning-icon div {
@@ -898,4 +902,6 @@ body::before {
   justify-content: center;
   cursor: pointer;
   user-select: none;
+  position: relative;
+  z-index: 10000 !important;
 }

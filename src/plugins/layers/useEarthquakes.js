@@ -113,7 +113,11 @@ export function useLayer({ enabled = false, opacity = 0.9, map = null }) {
       });
       
       console.log('Creating earthquake marker:', quakeId, 'at', lat, lon, 'size:', size, 'color:', color);
-      const circle = L.marker([lat, lon], { icon, opacity });
+      const circle = L.marker([lat, lon], { 
+        icon, 
+        opacity,
+        zIndexOffset: 10000 // Ensure markers appear on top
+      });
 
       // Add to map first
       circle.addTo(map);

@@ -167,7 +167,11 @@ export function useLayer({ enabled = false, opacity = 0.9, map = null }) {
         iconAnchor: [size/2, size/2]
       });
       
-      const marker = L.marker([lat, lon], { icon, opacity });
+      const marker = L.marker([lat, lon], { 
+        icon, 
+        opacity,
+        zIndexOffset: 10000 // Ensure markers appear on top
+      });
       
       // Add to map first
       marker.addTo(map);
