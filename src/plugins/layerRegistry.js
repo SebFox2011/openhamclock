@@ -5,11 +5,13 @@
 import * as WXRadarPlugin from './layers/useWXRadar.js';
 import * as EarthquakesPlugin from './layers/useEarthquakes.js';
 import * as AuroraPlugin from './layers/useAurora.js';
+import * as WSPRPlugin from './layers/useWSPR.js';
 
 const layerPlugins = [
   WXRadarPlugin,
   EarthquakesPlugin,
   AuroraPlugin,
+  WSPRPlugin,
 ];
 
 export function getAllLayers() {
