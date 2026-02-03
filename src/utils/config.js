@@ -197,6 +197,12 @@ export const MAP_STYLES = {
     name: 'Nat Geo',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
     attribution: '&copy; Esri, National Geographic'
+  },
+  countries: {
+    name: 'Countries',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri, Natural Earth',
+    countriesOverlay: true
   }
 };
 

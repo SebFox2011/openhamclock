@@ -382,6 +382,25 @@ body::before {
 }
 
 /* ============================================
+   COUNTRY TOOLTIP STYLES
+   ============================================ */
+.country-tooltip {
+  background: rgba(10, 14, 20, 0.9) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.country-tooltip::before {
+  border-top-color: rgba(10, 14, 20, 0.9) !important;
+}
+
+/* ============================================
    CUSTOM MARKER STYLES
    ============================================ */
 .custom-marker {

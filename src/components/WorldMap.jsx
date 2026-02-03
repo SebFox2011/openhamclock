@@ -51,6 +51,7 @@ export const WorldMap = ({
   const satMarkersRef = useRef([]);
   const satTracksRef = useRef([]);
   const pskMarkersRef = useRef([]);
+  const countriesLayerRef = useRef(null);
 
   // Plugin system refs and state
   const pluginLayersRef = useRef({});
@@ -177,6 +178,82 @@ export const WorldMap = ({
     if (terminatorRef.current) {
       terminatorRef.current.bringToFront();
     }
+  }, [mapStyle]);
+
+  // Countries overlay for "Countries" map style
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    
+    // Remove existing countries layer
+    if (countriesLayerRef.current) {
+      map.removeLayer(countriesLayerRef.current);
+      countriesLayerRef.current = null;
+    }
+    
+    // Only add overlay for countries style
+    if (!MAP_STYLES[mapStyle]?.countriesOverlay) return;
+    
+    // Bright distinct colors for countries (designed for maximum contrast between neighbors)
+    const COLORS = [
+      '#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4',
+      '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990',
+      '#dcbeff', '#9A6324', '#800000', '#aaffc3', '#808000',
+      '#000075', '#e6beff', '#ff6961', '#77dd77', '#fdfd96',
+      '#84b6f4', '#fdcae1', '#c1e1c1', '#b39eb5', '#ffb347'
+    ];
+    
+    // Simple string hash for consistent color assignment
+    const hashColor = (str) => {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return COLORS[Math.abs(hash) % COLORS.length];
+    };
+    
+    // Fetch world countries GeoJSON (Natural Earth 110m simplified, ~240KB)
+    fetch('https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json')
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(geojson => {
+        if (!mapInstanceRef.current) return;
+        
+        countriesLayerRef.current = L.geoJSON(geojson, {
+          style: (feature) => {
+            const name = feature.properties?.name || feature.id || 'Unknown';
+            return {
+              fillColor: hashColor(name),
+              fillOpacity: 0.65,
+              color: '#fff',
+              weight: 1,
+              opacity: 0.8
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const name = feature.properties?.name || 'Unknown';
+            layer.bindTooltip(name, {
+              sticky: true,
+              className: 'country-tooltip',
+              direction: 'top',
+              offset: [0, -5]
+            });
+          }
+        }).addTo(map);
+        
+        // Ensure countries layer is below markers but above tiles
+        countriesLayerRef.current.bringToBack();
+        // Put tile layer behind countries
+        if (tileLayerRef.current) tileLayerRef.current.bringToBack();
+        // Terminator on top
+        if (terminatorRef.current) terminatorRef.current.bringToFront();
+      })
+      .catch(err => {
+        console.warn('Could not load countries GeoJSON:', err);
+      });
   }, [mapStyle]);
 
   // Update DE/DX markers and celestial bodies
