@@ -133,6 +133,7 @@ export const DockableApp = ({
 
   // Panel definitions
   const panelDefs = useMemo(() => ({
+    'world-map': { name: 'World Map', icon: '🗺️' },
     'de-location': { name: 'DE Location', icon: '📍' },
     'dx-location': { name: 'DX Target', icon: '🎯' },
     'solar': { name: 'Solar', icon: '☀️' },
