@@ -2282,6 +2282,21 @@ const MAX_RBN_SPOTS = 500; // Keep last 500 spots
 const RBN_SPOT_TTL = 30 * 60 * 1000; // 30 minutes
 const callsignLocationCache = new Map(); // Permanent cache for skimmer locations
 
+// Helper function to convert frequency to band
+function freqToBandKHz(freqKHz) {
+  if (freqKHz >= 1800 && freqKHz < 2000) return '160m';
+  if (freqKHz >= 3500 && freqKHz < 4000) return '80m';
+  if (freqKHz >= 7000 && freqKHz < 7300) return '40m';
+  if (freqKHz >= 10100 && freqKHz < 10150) return '30m';
+  if (freqKHz >= 14000 && freqKHz < 14350) return '20m';
+  if (freqKHz >= 18068 && freqKHz < 18168) return '17m';
+  if (freqKHz >= 21000 && freqKHz < 21450) return '15m';
+  if (freqKHz >= 24890 && freqKHz < 24990) return '12m';
+  if (freqKHz >= 28000 && freqKHz < 29700) return '10m';
+  if (freqKHz >= 50000 && freqKHz < 54000) return '6m';
+  return 'Other';
+}
+
 /**
  * Maintain persistent connection to RBN Telnet
  */
