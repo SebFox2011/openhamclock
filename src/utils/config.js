@@ -22,6 +22,7 @@ export const DEFAULT_CONFIG = {
   showSatellites: true,
   showPota: true,
   showDxPaths: true,
+  showDxWeather: true,
   panels: {
     // Left sidebar panels
     deLocation: { visible: true, size: 1.0 },
