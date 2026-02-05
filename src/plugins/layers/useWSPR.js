@@ -62,24 +62,24 @@ function gridToLatLon(grid) {
   return { lat: latitude, lon: longitude };
 }
 
-// Get color based on SNR
+// Get color based on SNR (darker colors for better visibility)
 function getSNRColor(snr) {
-  if (snr === null || snr === undefined) return '#888888';
-  if (snr < -20) return '#ff0000';
-  if (snr < -10) return '#ff6600';
-  if (snr < 0) return '#ffaa00';
-  if (snr < 5) return '#ffff00';
-  return '#00ff00';
+  if (snr === null || snr === undefined) return '#666666';
+  if (snr < -20) return '#cc0000';      // Dark red
+  if (snr < -10) return '#dd4400';      // Dark orange
+  if (snr < 0) return '#ee8800';        // Orange
+  if (snr < 5) return '#dddd00';        // Dark yellow
+  return '#00cc00';                     // Dark green
 }
 
-// Get line weight based on SNR
+// Get line weight based on SNR (thicker lines for better visibility)
 function getLineWeight(snr) {
-  if (snr === null || snr === undefined) return 1;
-  if (snr < -20) return 1;
-  if (snr < -10) return 1.5;
-  if (snr < 0) return 2;
-  if (snr < 5) return 2.5;
-  return 3;
+  if (snr === null || snr === undefined) return 2;
+  if (snr < -20) return 2;
+  if (snr < -10) return 2.5;
+  if (snr < 0) return 3;
+  if (snr < 5) return 3.5;
+  return 4;
 }
 
 // Calculate great circle path between two points
@@ -1072,7 +1072,7 @@ export function useLayer({ enabled = false, opacity = 0.7, map = null, callsign,
         try { map.removeLayer(layer); } catch (e) {}
       });
     };
-  }, [enabled, wsprData, map, pathOpacity, snrThreshold, showAnimation, timeWindow]);
+  }, [enabled, wsprData, map, pathOpacity, snrThreshold, showAnimation, timeWindow, filterByGrid, gridFilter]);
 
   // Render heatmap overlay (v1.4.0)
   useEffect(() => {
@@ -1190,7 +1190,7 @@ export function useLayer({ enabled = false, opacity = 0.7, map = null, callsign,
         } catch (e) {}
       });
     };
-  }, [enabled, showHeatmap, wsprData, map, heatmapOpacity, snrThreshold, heatmapLayer]);
+  }, [enabled, showHeatmap, wsprData, map, heatmapOpacity, snrThreshold, heatmapLayer, filterByGrid, gridFilter]);
 
   // Cleanup controls on disable - FIX: properly remove all controls and layers
   useEffect(() => {
