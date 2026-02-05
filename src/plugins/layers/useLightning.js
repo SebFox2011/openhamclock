@@ -726,13 +726,11 @@ export function useLayer({ enabled = false, opacity = 0.9, map = null }) {
       return distance <= ALERT_RADIUS_KM;
     });
     
-    if (nearbyNewStrikes.length > 0) {
-      // Flash the stats panel red
-      const panel = document.querySelector('.lightning-stats');
-      if (panel) {
-        const originalBorder = panel.style.border;
-        const originalBoxShadow = panel.style.boxShadow;
-        
+    // Flash the stats panel red if there are nearby strikes
+    const panel = document.querySelector('.lightning-stats');
+    if (panel) {
+      if (nearbyNewStrikes.length > 0) {
+        // Flash red for nearby strikes
         panel.style.border = '2px solid #ff0000';
         panel.style.boxShadow = '0 0 20px rgba(255, 0, 0, 0.8)';
         panel.style.transition = 'all 0.3s ease';
@@ -743,12 +741,10 @@ export function useLayer({ enabled = false, opacity = 0.9, map = null }) {
           audio.volume = 0.3;
           audio.play().catch(() => {}); // Ignore errors if audio fails
         } catch (e) {}
-        
-        // Restore after 2 seconds
-        setTimeout(() => {
-          panel.style.border = originalBorder;
-          panel.style.boxShadow = originalBoxShadow;
-        }, 2000);
+      } else {
+        // No nearby strikes - restore normal appearance
+        panel.style.border = '1px solid var(--border-color)';
+        panel.style.boxShadow = 'none';
       }
     }
   }, [enabled, lightningData]);
