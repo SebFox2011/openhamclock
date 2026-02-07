@@ -1214,7 +1214,7 @@ app.get('/api/dxnews', async (req, res) => {
 // POTA Spots
 // POTA cache (1 minute)
 let potaCache = { data: null, timestamp: 0 };
-const POTA_CACHE_TTL = 60 * 1000; // 1 minute
+const POTA_CACHE_TTL = 90 * 1000; // 90 seconds (longer than 60s frontend poll to maximize cache hits)
 
 app.get('/api/pota/spots', async (req, res) => {
   try {
@@ -1622,7 +1622,7 @@ app.get('/api/dxcluster/sources', (req, res) => {
 
 // Cache for DX spot paths to avoid excessive lookups
 let dxSpotPathsCache = { paths: [], allPaths: [], timestamp: 0 };
-const DXPATHS_CACHE_TTL = 5000; // 5 seconds cache between fetches
+const DXPATHS_CACHE_TTL = 25000; // 25 seconds cache (just under 30s poll interval to maximize cache hits)
 const DXPATHS_RETENTION = 30 * 60 * 1000; // 30 minute spot retention
 
 app.get('/api/dxcluster/paths', async (req, res) => {
@@ -1916,9 +1916,22 @@ app.get('/api/dxcluster/paths', async (req, res) => {
 // CALLSIGN LOOKUP API (for getting location from callsign)
 // ============================================
 
+// Cache for callsign lookups - callsigns don't change location often
+const callsignLookupCache = new Map(); // key = callsign, value = { data, timestamp }
+const CALLSIGN_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
 // Simple callsign to grid/location lookup using HamQTH
 app.get('/api/callsign/:call', async (req, res) => {
   const callsign = req.params.call.toUpperCase();
+  const now = Date.now();
+  
+  // Check cache first
+  const cached = callsignLookupCache.get(callsign);
+  if (cached && (now - cached.timestamp) < CALLSIGN_CACHE_TTL) {
+    logDebug('[Callsign Lookup] Cache hit for:', callsign);
+    return res.json(cached.data);
+  }
+  
   logDebug('[Callsign Lookup] Looking up:', callsign);
   
   try {
@@ -1944,6 +1957,8 @@ app.get('/api/callsign/:call', async (req, res) => {
           ituZone: ituMatch ? ituMatch[1] : ''
         };
         logDebug('[Callsign Lookup] Found:', result);
+        // Cache the result
+        callsignLookupCache.set(callsign, { data: result, timestamp: now });
         return res.json(result);
       }
     }
@@ -1952,6 +1967,8 @@ app.get('/api/callsign/:call', async (req, res) => {
     const estimated = estimateLocationFromPrefix(callsign);
     if (estimated) {
       logDebug('[Callsign Lookup] Estimated from prefix:', estimated);
+      // Cache estimated results too
+      callsignLookupCache.set(callsign, { data: estimated, timestamp: now });
       return res.json(estimated);
     }
     
@@ -2732,8 +2749,21 @@ function getCountryFromPrefix(prefix) {
 // MY SPOTS API - Get spots involving a specific callsign
 // ============================================
 
+// Cache for my spots data
+let mySpotsCache = new Map(); // key = callsign, value = { data, timestamp }
+const MYSPOTS_CACHE_TTL = 45000; // 45 seconds (just under 60s frontend poll to maximize cache hits)
+
 app.get('/api/myspots/:callsign', async (req, res) => {
   const callsign = req.params.callsign.toUpperCase();
+  const now = Date.now();
+  
+  // Check cache first
+  const cached = mySpotsCache.get(callsign);
+  if (cached && (now - cached.timestamp) < MYSPOTS_CACHE_TTL) {
+    logDebug('[My Spots] Returning cached data for:', callsign);
+    return res.json(cached.data);
+  }
+  
   logDebug('[My Spots] Searching for callsign:', callsign);
   
   const mySpots = [];
@@ -2812,6 +2842,9 @@ app.get('/api/myspots/:callsign', async (req, res) => {
         country: loc?.country
       };
     }).filter(s => s.lat && s.lon); // Only return spots with valid locations
+    
+    // Cache the result
+    mySpotsCache.set(callsign, { data: spotsWithLocations, timestamp: Date.now() });
     
     res.json(spotsWithLocations);
   } catch (error) {
@@ -3429,7 +3462,7 @@ app.get('/api/wspr/heatmap', async (req, res) => {
     const flowStartSeconds = -Math.abs(minutes * 60);
     // Query PSK Reporter for WSPR mode spots (no specific callsign filter)
     // Get data from multiple popular WSPR frequencies to build heatmap
-    const url = `https://retrieve.pskreporter.info/query?mode=WSPR&flowStartSeconds=${flowStartSeconds}&rronly=1&nolocator=0&appcontact=openhamclock&rptlimit=10000`;
+    const url = `https://retrieve.pskreporter.info/query?mode=WSPR&flowStartSeconds=${flowStartSeconds}&rronly=1&nolocator=0&appcontact=openhamclock&rptlimit=2000`;
     
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
@@ -3632,104 +3665,69 @@ const TLE_CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 app.get('/api/satellites/tle', async (req, res) => {
   try {
     const now = Date.now();
-    
-    // Return cached data if fresh
+    // Return cached data if fresh (6-hour window)
     if (tleCache.data && (now - tleCache.timestamp) < TLE_CACHE_DURATION) {
       return res.json(tleCache.data);
     }
+
+    logDebug('[Satellites] Fetching fresh TLE data from multiple groups...');
+    const tleData = {}; // Declare this exactly once to avoid SyntaxErrors
     
-    logDebug('[Satellites] Fetching fresh TLE data...');
-    
-    // Fetch fresh TLE data from CelesTrak
-    const tleData = {};
-    
-    // Fetch amateur radio satellites TLE
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch(
-      'https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle',
-      {
-        headers: { 'User-Agent': 'OpenHamClock/3.13.1' },
-        signal: controller.signal
-      }
-    );
-    clearTimeout(timeout);
-    
-    if (response.ok) {
-      const text = await response.text();
-      const lines = text.trim().split('\n');
-      
-      // Parse TLE data (3 lines per satellite: name, line1, line2)
-      for (let i = 0; i < lines.length - 2; i += 3) {
-        const name = lines[i].trim();
-        const line1 = lines[i + 1]?.trim();
-        const line2 = lines[i + 2]?.trim();
-        
-        if (line1 && line2 && line1.startsWith('1 ') && line2.startsWith('2 ')) {
-          // Extract NORAD ID from line 1
-          const noradId = parseInt(line1.substring(2, 7));
-          
-          // Check if this is a satellite we care about
-          for (const [key, sat] of Object.entries(HAM_SATELLITES)) {
-            if (sat.norad === noradId) {
-              tleData[key] = {
-                ...sat,
-                tle1: line1,
-                tle2: line2
-              };
+
+    // This list tells the server to look in all three CelesTrak folders
+    const groups = ['amateur', 'weather', 'goes']; 
+
+    for (const group of groups) {
+      try {
+        const response = await fetch(
+          `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=tle`,
+          { headers: { 'User-Agent': 'OpenHamClock/3.3' }, signal: controller.signal }
+        );
+
+        if (response.ok) {
+          const text = await response.text();
+          const lines = text.trim().split('\n');
+          // Parse 3 lines per satellite: Name, Line 1, Line 2
+          for (let i = 0; i < lines.length - 2; i += 3) {
+            const line1 = lines[i + 1]?.trim();
+            const line2 = lines[i + 2]?.trim();
+            if (line1 && line1.startsWith('1 ')) {
+              const noradId = parseInt(line1.substring(2, 7));
+              // Check if the NORAD ID matches your definitions in HAM_SATELLITES
+              for (const [key, sat] of Object.entries(HAM_SATELLITES)) {
+                if (sat.norad === noradId) {
+                  tleData[key] = { ...sat, tle1: line1, tle2: line2 };
+                }
+              }
             }
           }
         }
+      } catch (e) {
+        logDebug(`[Satellites] Failed to fetch group: ${group}`);
       }
     }
-    
-    // Also try to get ISS specifically (it's in the stations group)
+    clearTimeout(timeout);
+
+    // Fallback for ISS if it wasn't found in the groups above
     if (!tleData['ISS']) {
       try {
-        const issController = new AbortController();
-        const issTimeout = setTimeout(() => issController.abort(), 10000);
-        
-        const issResponse = await fetch(
-          'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle',
-          { 
-            headers: { 'User-Agent': 'OpenHamClock/3.13.1' },
-            signal: issController.signal
-          }
-        );
-        clearTimeout(issTimeout);
-        
-        if (issResponse.ok) {
-          const issText = await issResponse.text();
+        const issRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle');
+        if (issRes.ok) {
+          const issText = await issRes.text();
           const issLines = issText.trim().split('\n');
           if (issLines.length >= 3) {
-            tleData['ISS'] = {
-              ...HAM_SATELLITES['ISS'],
-              tle1: issLines[1].trim(),
-              tle2: issLines[2].trim()
-            };
-            logDebug('[Satellites] Found ISS TLE');
+            tleData['ISS'] = { ...HAM_SATELLITES['ISS'], tle1: issLines[1].trim(), tle2: issLines[2].trim() };
           }
         }
-      } catch (e) {
-        if (e.name !== 'AbortError') {
-          logErrorOnce('Satellites', `ISS TLE fetch: ${e.message}`);
-        }
-      }
+      } catch (e) { logDebug('[Satellites] ISS fallback failed'); }
     }
-    
-    // Cache the result
+
     tleCache = { data: tleData, timestamp: now };
-    
-    logDebug('[Satellites] Loaded TLE for', Object.keys(tleData).length, 'satellites');
     res.json(tleData);
-    
   } catch (error) {
-    // Don't spam logs for timeouts (AbortError) or network issues
-    if (error.name !== 'AbortError') {
-      logErrorOnce('Satellites', `TLE fetch error: ${error.message}`);
-    }
-    // Return cached data even if stale, or empty object
+    // Return stale cache or empty if everything fails
     res.json(tleCache.data || {});
   }
 });

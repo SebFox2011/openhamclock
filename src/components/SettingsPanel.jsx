@@ -185,7 +185,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
     classic: t('station.settings.layout.classic.describe'),
     tablet: t('station.settings.layout.tablet.describe'),
     compact: t('station.settings.layout.compact.describe'),
-    dockable: 'Resizable, draggable panels with tabs'
+    dockable: t('station.settings.layout.dockable.describe')
   };
 
   return (
@@ -244,7 +244,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
               fontFamily: 'JetBrains Mono, monospace'
             }}
           >
-            ⌇ Station
+            {t('station.settings.tab1.title')}
           </button>
           <button
             onClick={() => setActiveTab('layers')}
@@ -261,7 +261,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
               fontFamily: 'JetBrains Mono, monospace'
             }}
           >
-            ⊞ {t('station.settings.layers.title')}
+            {t('station.settings.tab2.title')}
           </button>
           <button
             onClick={() => setActiveTab('satellites')}
@@ -278,7 +278,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
               fontFamily: 'JetBrains Mono, monospace'
             }}
           >
-            ⛊ Satellites
+            {t('station.settings.tab3.title')}
           </button>
         </div>
 
@@ -369,7 +369,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                 type="text"
                 value={gridSquare}
                 onChange={(e) => handleGridChange(e.target.value)}
-                placeholder="FN20nc"
+                placeholder={t('station.settings.locator.placeholder')}
                 maxLength={6}
                 style={{
                   width: '100%',
@@ -502,7 +502,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                       fontWeight: layout === l ? '600' : '400'
                     }}
                   >
-                    {l === 'modern' ? '🖥️' : l === 'classic' ? '📺' : l === 'tablet' ? '📱' : l === 'compact' ? '📊' : '⊞'} {l === 'dockable' ? 'Dockable' : t('station.settings.layout.' + l)}
+                    {l === 'modern' ? '🖥️' : l === 'classic' ? '📺' : l === 'tablet' ? '📱' : l === 'compact' ? '📊' : '⊞'} {l === 'dockable' ? t('station.settings.layout.dockable') : t('station.settings.layout.' + l)}
                   </button>
                 ))}
               </div>
@@ -512,7 +512,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
               {layout === 'dockable' && onResetLayout && (
                 <button
                   onClick={() => {
-                    if (confirm('Reset panel layout to default?')) {
+                    if (confirm(t('station.settings.layout.reset.confirm'))) {
                       onResetLayout();
                     }
                   }}
@@ -534,7 +534,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
                   </svg>
-                  Reset Panel Layout
+                  {t('station.settings.layout.reset.button')}
                 </button>
               )}
             </div>
@@ -542,7 +542,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
             {/* DX Cluster Source */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                🕐 Timezone
+                {t('station.settings.timezone')}
               </label>
               <select
                 value={timezone}
@@ -559,8 +559,8 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                   cursor: 'pointer'
                 }}
               >
-                <option value="">Auto (browser default)</option>
-                <optgroup label="North America">
+                <option value="">{t('station.settings.timezone.auto')}</option>
+                <optgroup label={t('station.settings.timezone.group.northAmerica')}>
                   <option value="America/New_York">Eastern (New York)</option>
                   <option value="America/Chicago">Central (Chicago)</option>
                   <option value="America/Denver">Mountain (Denver)</option>
@@ -577,7 +577,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                   <option value="America/Vancouver">BC (Vancouver)</option>
                   <option value="America/Mexico_City">Mexico City</option>
                 </optgroup>
-                <optgroup label="Europe">
+                <optgroup label={t('station.settings.timezone.group.europe')}>
                   <option value="Europe/London">UK (London)</option>
                   <option value="Europe/Dublin">Ireland (Dublin)</option>
                   <option value="Europe/Paris">Central Europe (Paris)</option>
@@ -595,7 +595,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                   <option value="Europe/Zurich">Switzerland (Zurich)</option>
                   <option value="Europe/Lisbon">Portugal (Lisbon)</option>
                 </optgroup>
-                <optgroup label="Asia & Pacific">
+                <optgroup label={t('station.settings.timezone.group.asiaPacific')}>
                   <option value="Asia/Tokyo">Japan (Tokyo)</option>
                   <option value="Asia/Seoul">Korea (Seoul)</option>
                   <option value="Asia/Shanghai">China (Shanghai)</option>
@@ -609,13 +609,14 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                   <option value="Asia/Bangkok">Thailand (Bangkok)</option>
                   <option value="Asia/Jakarta">Indonesia (Jakarta)</option>
                   <option value="Asia/Manila">Philippines (Manila)</option>
-                  <option value="Australia/Sydney">Australia Eastern (Sydney)</option>
+                  <option value="Australia/Brisbane">Australia Eastern (Brisbane)</option>
+                  <option value="Australia/Sydney">Australia Eastern (Sydney, Canberra, Melbourne, Hobart)</option>
                   <option value="Australia/Adelaide">Australia Central (Adelaide)</option>
                   <option value="Australia/Perth">Australia Western (Perth)</option>
                   <option value="Pacific/Auckland">New Zealand (Auckland)</option>
                   <option value="Pacific/Fiji">Fiji</option>
                 </optgroup>
-                <optgroup label="South America">
+                <optgroup label={t('station.settings.timezone.group.southAmerica')}>
                   <option value="America/Sao_Paulo">Brazil (São Paulo)</option>
                   <option value="America/Argentina/Buenos_Aires">Argentina (Buenos Aires)</option>
                   <option value="America/Santiago">Chile (Santiago)</option>
@@ -623,14 +624,14 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                   <option value="America/Lima">Peru (Lima)</option>
                   <option value="America/Caracas">Venezuela (Caracas)</option>
                 </optgroup>
-                <optgroup label="Africa">
+                <optgroup label={t('station.settings.timezone.group.africa')}>
                   <option value="Africa/Cairo">Egypt (Cairo)</option>
                   <option value="Africa/Johannesburg">South Africa (Johannesburg)</option>
                   <option value="Africa/Lagos">Nigeria (Lagos)</option>
                   <option value="Africa/Nairobi">Kenya (Nairobi)</option>
                   <option value="Africa/Casablanca">Morocco (Casablanca)</option>
                 </optgroup>
-                <optgroup label="Other">
+                <optgroup label={t('station.settings.timezone.group.other')}>
                   <option value="UTC">UTC</option>
                   <option value="Atlantic/Reykjavik">Iceland (Reykjavik)</option>
                   <option value="Atlantic/Azores">Azores</option>
@@ -639,9 +640,8 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                 </optgroup>
               </select>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                Set this if your local time shows incorrectly (e.g. same as UTC).
-                Privacy browsers like Librewolf may spoof your timezone.
-                {timezone ? '' : ' Currently using browser default.'}
+                {t('station.settings.timezone.describe')}
+                {timezone ? '' : t('station.settings.timezone.currentDefault')}
               </div>
             </div>
 
@@ -713,7 +713,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                 <option value="hamqth">{t('station.settings.dx.option2')}</option>
                 <option value="dxwatch">{t('station.settings.dx.option3')}</option>
                 <option value="auto">{t('station.settings.dx.option4')}</option>
-                <option value="custom">Custom Telnet Server</option>
+                <option value="custom">{t('station.settings.dx.custom.option')}</option>
               </select>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
                 {t('station.settings.dx.describe')}
@@ -730,19 +730,19 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                 border: '1px solid var(--border-color)'
               }}>
                 <label style={{ display: 'block', marginBottom: '12px', color: 'var(--accent-cyan)', fontSize: '12px', fontWeight: '600' }}>
-                  📡 Custom Telnet Server
+                  {t('station.settings.dx.custom.title')}
                 </label>
                 
                 {/* Host */}
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '4px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                    Host
+                    {t('station.settings.dx.custom.host')}
                   </label>
                   <input
                     type="text"
                     value={customDxCluster.host}
                     onChange={(e) => setCustomDxCluster({ ...customDxCluster, host: e.target.value })}
-                    placeholder="e.g. dxspider.example.com"
+                    placeholder={t('station.settings.dx.custom.host.placeholder')}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -759,13 +759,13 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                 {/* Port */}
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '4px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                    Port
+                    {t('station.settings.dx.custom.port')}
                   </label>
                   <input
                     type="number"
                     value={customDxCluster.port}
                     onChange={(e) => setCustomDxCluster({ ...customDxCluster, port: parseInt(e.target.value) || 7300 })}
-                    placeholder="7300"
+                    placeholder={t('station.settings.dx.custom.port.placeholder')}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -780,12 +780,12 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                 </div>
 
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                  Your callsign ({callsign || 'N0CALL'}) will be used for login.
-                  Common ports: 7300, 7373, 8000, 23.
+                  {t('station.settings.dx.custom.callsign', { callsign: callsign || 'N0CALL' })}
+                  {' '}
+                  {t('station.settings.dx.custom.commonPorts')}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--accent-amber)', marginTop: '8px' }}>
-                  ⚠️ Custom telnet requires self-hosted deployment (Pi/local). 
-                  Cloud hosting (Railway/openhamclock.app) blocks outbound telnet.
+                  {t('station.settings.dx.custom.warning')}
                 </div>
               </div>
             )}
@@ -954,7 +954,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                   cursor: 'pointer',
                   fontFamily: 'JetBrains Mono'
                 }}
-              >Select All</button>
+              >{t('station.settings.satellites.selectAll')}</button>
               <button
                 onClick={() => onSatelliteFiltersChange([])}
                 style={{
@@ -967,7 +967,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                   cursor: 'pointer',
                   fontFamily: 'JetBrains Mono'
                 }}
-              >Clear</button>
+              >{t('station.settings.satellites.clear')}</button>
             </div>
             
             <div style={{
@@ -976,8 +976,8 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
               marginBottom: '12px'
             }}>
               {satelliteFilters.length === 0 
-                ? 'Showing all satellites (no filter)' 
-                : `${satelliteFilters.length} satellite(s) selected`}
+                ? t('station.settings.satellites.showAll')
+                : t('station.settings.satellites.selectedCount', { count: satelliteFilters.length })}
             </div>
             
             <div style={{
@@ -1042,7 +1042,7 @@ export const SettingsPanel = ({ isOpen, onClose, config, onSave, onResetLayout, 
                           color: sat.visible ? '#00ff88' : 'var(--text-muted)',
                           marginTop: '2px'
                         }}>
-                          {sat.visible ? '● Visible' : '○ Below horizon'}
+                          {sat.visible ? t('station.settings.satellites.visible') : t('station.settings.satellites.belowHorizon')}
                         </div>
                       )}
                     </div>
